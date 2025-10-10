@@ -15,7 +15,7 @@ from pathlib import Path
 import torch
 import math
 import torch.nn.functional as F
-from torch.optim import Adam
+from torch.optim import Adam, AdamW
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 
@@ -446,7 +446,7 @@ class ScheduledOptim():
         if self.n_current_steps < self.n_warmup_steps:
             return np.power(self.n_warmup_steps, -1.7) * self.n_current_steps
         else:
-            return np.min([np.power(self.n_current_steps, -0.5), np.power(self.n_warmup_steps,-0.7)])
+            return np.min([np.power(self.n_current_steps, -0.45), np.power(self.n_warmup_steps,-0.7)])
         #return np.min([
          #   np.power(self.n_current_steps, -0.2),
           #  np.power(self.n_warmup_steps, -1.2) * self.n_current_steps])
@@ -485,7 +485,7 @@ class MLMTrainer:
         self.val_data = val_data
         
         # Setting the Adam optimizer with hyper-param
-        self.optim = Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        self.optim = AdamW(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
         self.optim_schedule = ScheduledOptim(
             self.optim, self.model.bgc_mlm.d_model, n_warmup_steps=warmup_steps
             )
@@ -529,17 +529,19 @@ class MLMTrainer:
         
         return avg_loss / (i + 1)
     
-    def predictSequence(self):
+    def predictSequenceMetrics(self):
         data_iter = tqdm.tqdm(
             enumerate(self.train_data),
             total=len(self.train_data),
-            bar_format="{l_bar}{r_bar}"
+            bar_format="{l_bar}{r_bar}",
+            mininterval=1000
         )
-        prediction_list = []
+        #prediction_list = []
         avg_loss = 0.0
         avg_accuracy = 0.0
+        avg_5_accuracy = 0.0
         avg_10_accuracy = 0.0
-        avg_50_accuracy = 0.0
+        avg_max_val = 0.0
         self.model.eval()
         total_data_points = 0
         with torch.no_grad():
@@ -549,8 +551,8 @@ class MLMTrainer:
                 data = {key: value.to(self.device) for key, value in data.items()}
                
                 predicted_index = torch.argmax(data["bert_label"])
-                #this should occur if the sequence is PADed?
-                if data["bert_label"][0][predicted_index] == 0:
+                #skip if PAD or other special token
+                if data["bert_label"][0][predicted_index] == 0 or data["bert_label"][0][predicted_index] == 1 or data["bert_label"][0][predicted_index] == 2:
                     #print(data["bert_label"][0])
                     #print("HERE!!")
                     continue
@@ -568,38 +570,47 @@ class MLMTrainer:
                 mask_loss = self.criterion(mask_lm_output.transpose(1, 2), data["bert_label"])
                 #print(mask_lm_output.transpose(1, 2))
                 #print(data["bert_label"])
-                print("mask loss " + str(mask_loss))
+                #print("mask loss " + str(mask_loss))
 
                 # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
                 #loss = next_loss + mask_loss
                 loss = mask_loss
                 avg_loss += mask_loss.item()
-                prediction_list.append(mask_lm_output)
+                #prediction_list.append(mask_lm_output.cpu().numpy())
                 max_indices = torch.argmax(mask_lm_output,dim=2)
+                max_vals, max_indices2 = torch.max(mask_lm_output,dim=2)
+                max_val = max_vals[0][predicted_index].item()
+                avg_max_val += max_val
                 
                 total_data_points += 1
                 if max_indices[0][predicted_index] == data["bert_label"][0][predicted_index]:
                     avg_accuracy += 1
                 #rank predictions at position for top 10 and top 50 metric
+                top5_val, top5_ind = torch.topk(mask_lm_output, k=5, dim=2)
                 top10_val, top10_ind = torch.topk(mask_lm_output, k=10, dim=2)
-                top50_val, top50_ind = torch.topk(mask_lm_output, k=50, dim=2)
                 
-                if max_indices[0][predicted_index] in top10_ind[:,predicted_index,:]:
+                if data["bert_label"][0][predicted_index] in top5_ind[:,predicted_index,:]:
+                    avg_5_accuracy += 1
+                if data["bert_label"][0][predicted_index] in top10_ind[:,predicted_index,:]:
                     avg_10_accuracy += 1
-                if max_indices[0][predicted_index] in top50_ind[:,predicted_index,:]:
-                    avg_50_accuracy += 1
+                
                 #print("max indices")
                 #print(max_indices)
+                #torch.cuda.empty_cache()
         if total_data_points > 0:
             avg_loss = avg_loss / total_data_points
             avg_accuracy = avg_accuracy/total_data_points
+            avg_5_accuracy = avg_5_accuracy/total_data_points
             avg_10_accuracy = avg_10_accuracy/total_data_points
-            avg_50_accuracy = avg_50_accuracy/total_data_points
+            avg_max_val = avg_max_val/total_data_points
             print("average loss: " + str(avg_loss))
-            print("avg top 10: " + str(avg_10_accuracy))
-            return avg_loss, prediction_list, avg_accuracy, avg_10_accuracy, avg_50_accuracy
+            print("avg accuracy: " + str(avg_accuracy))
+            print("avg top 5: " + str(avg_5_accuracy))
+            #return avg_loss, prediction_list, avg_accuracy, avg_5_accuracy, avg_10_accuracy, avg_max_val
+            return avg_loss, avg_accuracy, avg_5_accuracy, avg_10_accuracy, avg_max_val
         else:
-            return None, prediction_list, None, None, None
+            #return None, prediction_list, None, None, None, None
+            return None,  None, None, None, None
     
     def encode(self, data_loader):
         # progress bar
@@ -783,3 +794,173 @@ class MLMTrainer:
                 f"EP{epoch}, {mode}: \
                     avg_loss={avg_loss / len(data_iter)}"
                     )   
+
+class BGCMultiLabelClassifier(torch.nn.Module):
+    def __init__(self,bgc_mlm, d_model, n_tasks,freeze=False):
+        super(BGCMultiLabelClassifier, self).__init__()
+        self.bgc_mlm = bgc_mlm
+        if freeze:
+            for param in bgc_mlm.parameters():           
+                param.requires_grad = False
+        self.dense_layers = torch.nn.Sequential(torch.nn.Linear(d_model,int(d_model)),torch.nn.ReLU())
+        self.output = torch.nn.Sequential(torch.nn.Linear(int(d_model), n_tasks))
+        self.d_model = d_model
+    
+    def forward(self,x):
+        x = self.bgc_mlm(x)
+        x = torch.mean(x,1)
+        x = self.dense_layers(x)
+        x = self.output(x)
+        return x
+
+class BGCMultiLabelTrainier():
+    def __init__(
+        self, 
+        model, 
+        train_dataloader, 
+        val_data,
+        pos_weights,
+        test_dataloader=None, 
+        lr= 1e-4,
+        weight_decay=0.01,
+        betas=(0.9, 0.999),
+        warmup_steps=1000,
+        log_freq=10,
+        device='cpu'
+        ):
+        
+        self.device = device
+        print(device)
+        self.model = model
+        self.train_data = train_dataloader
+        self.test_data = test_dataloader
+        self.val_data = val_data
+        
+         # Setting the AdamW optimizer with hyper-param
+        self.optim = AdamW(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        self.optim_schedule = ScheduledOptim(
+            self.optim, self.model.d_model, n_warmup_steps=warmup_steps
+            )
+        self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weights)
+        self.log_freq = log_freq
+        self.train_loss_list = []
+        self.val_loss_list= []
+        print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
+    def train(self, epoch):
+        self.iteration(epoch, self.train_data, self.val_data)
+    def test(self, epoch):
+        self.model.eval()
+        self.iteration(epoch, self.train_data, self.val_data, train=False)
+    
+    def predict(self,data, batch_size=2144):
+        data_loader = DataLoader(data, batch_size)
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        with torch.no_grad():
+             for i, data in data_iter:
+                 data = {key: value.to(self.device) for key, value in data.items()}
+                 predictions = self.model.forward(data["bert_input"])
+                 activation = torch.nn.Sequential(torch.nn.Sigmoid())
+                 predictions = activation(predictions)
+                 if i == 0:
+                     all_predictions = predictions
+                 else:
+                     all_predictions = torch.cat((all_predictions, predictions))
+        return all_predictions
+    
+    def validate(self, validation_set, batch_size=2144):
+        val_loader = DataLoader(validation_set, batch_size)
+        print('validating...')
+        data_iter = tqdm.tqdm(
+            enumerate(val_loader),
+            total=len(val_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        avg_loss = 0.0
+        with torch.no_grad():
+            for i, data in data_iter:
+                # 0. batch_data will be sent into the device(GPU or cpu)
+                #print(data)
+                data = {key: value.to(self.device) for key, value in data.items()}
+
+                # 1. forward the next_sentence_prediction and masked_lm model
+                #print(data)
+                model_output = self.model.forward(data["bert_input"])
+                
+                
+                loss = self.criterion(model_output, data["classification_label"].float())
+                
+                avg_loss += loss.item()
+        
+        return avg_loss / (i + 1)
+    def iteration(self, epoch, data_loader, val_data, train=True):
+        avg_loss = 0.0
+        total_correct = 0
+        total_element = 0
+        
+        mode = "train" if train else "test"
+
+        # progress bar
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            desc="EP_%s:%d" % (mode, epoch),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+
+        for i, data in data_iter:
+
+            # 0. batch_data will be sent into the device(GPU or cpu)
+            data = {key: value.to(self.device) for key, value in data.items()}
+
+            # 1. forward the next_sentence_prediction and masked_lm model
+            model_output = self.model.forward(data["bert_input"])
+            #if i == 0:
+             #   print("model output ")
+              #  print(model_output)
+               # print("labels")
+                #print(data["classification_label"])
+            # 2-2. Calc loss
+            # transpose to (m, vocab_size, seq_len) vs (m, seq_len)
+            # criterion(mask_lm_output.view(-1, mask_lm_output.size(-1)), data["bert_label"].view(-1))
+            loss = self.criterion(model_output, data["classification_label"].float())
+
+
+            # 3. backward and optimization only in train
+            if train:
+                self.optim_schedule.zero_grad()
+                loss.backward()
+                self.optim_schedule.step_and_update_lr()
+
+            # next sentence prediction accuracy
+            #correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().item()
+            avg_loss += loss.item()
+            #total_correct += correct
+            #total_element += data["is_next"].nelement()
+            
+            post_fix = {
+                "epoch": epoch,
+                "iter": i,
+                "avg_loss": avg_loss / (i + 1),
+                "loss": loss.item()
+            }
+
+            if i % self.log_freq == 0:
+                data_iter.write(str(post_fix))
+        if train:
+            val_loss = self.validate(val_data, batch_size=64)
+            self.val_loss_list.append(val_loss)
+            self.train_loss_list.append(avg_loss / len(data_iter))
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)},\
+                        val_loss={val_loss}"
+                    )    
+        else:
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)}"
+                    )    

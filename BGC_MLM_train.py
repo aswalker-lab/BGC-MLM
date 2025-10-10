@@ -47,7 +47,6 @@ print("Number of attention heads: " + str(args.heads) + "\n")
 print("Dropout: " + str(args.dropout) + "\n")
 print("Batch size: " + str(args.batch_size) + "\n")
 torch.set_num_threads(8)
-tokenized_dir = "tokenized_bgcs/pfam/"
 pad_token = "PAD"
 token_list  = ["PAD","CLS","SEP","MASK","UNK"]
 
