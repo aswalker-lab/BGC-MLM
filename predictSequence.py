@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep 30 11:11:39 2025
+Created on Sat Nov 22 13:23:09 2025
 
 @author: Allison Walker
 """
@@ -36,7 +36,7 @@ unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
 
 #TODO: make in dir an argument and fix train.txt to have shorter path
-training_data_file = open(args.data_set)
+data_file = open(args.data_set)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #load token list
@@ -64,7 +64,7 @@ bgc_tokens = []
 bgc_names = []
 count = 0
 bgc_token_dic = {}
-for line in training_data_file:
+for line in data_file:
     filename = line.replace("\n","")
     infile = open(line.replace("\n",""))
     bgc_token = ["CLS"]
@@ -84,12 +84,12 @@ for line in training_data_file:
         while j < max_bgc_length:
            bgc_token.append("PAD")
            j += 1
+    bgc_names.append(filename)
     bgc_tokens.append(bgc_token)
     i += 1
 
 print(str(len(bgc_tokens)) + " BGCs under length threshold")
-outfile = open(args.model_name + "_topK_accuracy.csv",'w')
-outfile.write("avg loss,avg accuracy, avg top 5, top 10\n")
+print(bgc_tokens)
 avg_loss = 0
 avg_accuracy= 0
 avg_5_accuracy = 0
@@ -98,35 +98,43 @@ max_bgc_length = 0
 
 accuracy_by_position = []
 max_val_by_position = []
-for i in range(1,len(bgc_token)):
-    masked_dataset = BGC_MLM_tools.specificMaskMLMDataset(
-            bgc_tokens, token_list, [i], seq_len=max_bgc_length)
-    if device == "cpu":
-        masked_loader = DataLoader(
-            masked_dataset, batch_size=1, shuffle=True, pin_memory=True)
-    else:
-        masked_loader = DataLoader(
-            masked_dataset, batch_size=1, shuffle=True, pin_memory=False)
-    mlm_trainer = BGC_MLM_tools.MLMTrainer(mlm, masked_loader, masked_loader, device=device)   
-    pos_avg_loss, pos_avg_accuracy, pos_avg_5_accuracy, pos_avg_10_accuracy, avg_max_val = mlm_trainer.predictSequenceMetrics()
-    if pos_avg_loss == None:
-        continue
-    max_bgc_length += 1
-    avg_loss += pos_avg_loss
-    avg_accuracy += pos_avg_accuracy
-    avg_5_accuracy += pos_avg_5_accuracy
-    avg_10_accuracy += pos_avg_10_accuracy
-    accuracy_by_position.append(pos_avg_accuracy)
-    max_val_by_position.append(avg_max_val)
+model_name = args.model_name
+if "/" in model_name:
+    model_name = args.model_name[args.model_name.rfind("/")+1:len(args.model_name)]
+outfile_acc = open(model_name + "_" + args.data_set + "_accuracy_by_position.csv",'w')
+outfile_score = open(model_name + "_" + args.data_set +  "_score_by_position.csv",'w')
+for i in range(0, len(bgc_tokens)):
+    outfile_acc.write(bgc_names[i])
+    outfile_score.write(bgc_names[i])
+    for j in range(1,len(bgc_token)):
+        masked_dataset = BGC_MLM_tools.specificMaskMLMDataset(
+            [bgc_tokens[i]], token_list, [j], seq_len=max_bgc_length)
+        if device == "cpu":
+            masked_loader = DataLoader(
+                masked_dataset, batch_size=1, shuffle=True, pin_memory=True)
+        else:
+            masked_loader = DataLoader(
+                masked_dataset, batch_size=1, shuffle=True, pin_memory=False)
+        mlm_trainer = BGC_MLM_tools.MLMTrainer(mlm, masked_loader, masked_loader, device=device)   
+        pos_avg_loss, pos_avg_accuracy, pos_avg_5_accuracy, pos_avg_10_accuracy, avg_max_val = mlm_trainer.predictSequenceMetrics()
+        if pos_avg_loss == None:
+            continue
+        max_bgc_length += 1
+        avg_loss += pos_avg_loss
+        avg_accuracy += pos_avg_accuracy
+        avg_5_accuracy += pos_avg_5_accuracy
+        avg_10_accuracy += pos_avg_10_accuracy
+        accuracy_by_position.append(pos_avg_accuracy)
+        max_val_by_position.append(avg_max_val)
+        outfile_acc.write("," + str(pos_avg_accuracy)) 
+        outfile_score.write(","+str(avg_max_val))
+    outfile_acc.write("\n")
+    outfile_score.write("\n")
+    
+    
 avg_loss /= max_bgc_length
 avg_accuracy /= max_bgc_length
 avg_5_accuracy /= max_bgc_length
 avg_10_accuracy /= max_bgc_length
-
-outfile.write(str(avg_loss) + "," + str(avg_accuracy) + ","+ str(avg_5_accuracy) + ","+ str(avg_10_accuracy) +"\n")
-outfile.close()
-
-outfile = open(args.model_name + "_accuracy_by_position.csv",'w')
-for i in range(0, len(accuracy_by_position)):
-    outfile.write(str(i) + "," + str(accuracy_by_position[i]) + "," + str(max_val_by_position[i]) + "\n")
-outfile.close()
+outfile_acc.close()
+outfile_score.close()

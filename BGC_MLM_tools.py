@@ -19,6 +19,69 @@ from torch.optim import Adam, AdamW
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 
+
+def pairwise_distances(x, eps=1e-9):
+    """
+    Compute full pairwise Euclidean distance matrix for input x.
+    x: (N, d) tensor
+    Returns: (N, N) distance matrix
+    """
+    # x2: squared norms
+    x2 = (x**2).sum(dim=1, keepdim=True)   # (N,1)
+
+    # Dot product matrix
+    xy = x @ x.t()                         # (N,N)
+
+    # Compute squared distances: ||x_i||^2 + ||x_j||^2 - 2 x_i·x_j
+    dist_sq = x2 + x2.t() - 2*xy
+    dist_sq = torch.clamp(dist_sq, min=0.0)
+
+    # Euclidean distances
+    return torch.sqrt(dist_sq + eps)
+
+def pairwise_distance_vector(x):
+    """
+    Returns pairwise Euclidean distances as a vector of size N*(N-1)/2
+    (upper triangular part).
+    """
+    D = pairwise_distances(x)
+    i, j = torch.triu_indices(D.size(0), D.size(0), offset=1)
+    return D[i, j]
+
+def cosine_similarity_matrix(x, eps=1e-8):
+    """
+    Computes full pairwise cosine similarity matrix for rows of x.
+    x: (N, d)
+    Returns: (N, N) cosine similarity matrix
+    """
+    # Normalize each row to unit norm
+    x_norm = x / (x.norm(dim=1, keepdim=True) + eps)  # avoid division by zero
+
+    # Cosine sim = dot product of normalized vectors
+    sim = x_norm @ x_norm.t()   # (N, N)
+
+    # Clamp for numerical stability (cosine should be in [-1, 1])
+    sim = torch.clamp(sim, -1.0, 1.0)
+    return sim
+
+
+def cosine_distance_matrix(x, eps=1e-8):
+    """
+    Computes pairwise cosine distance = 1 - cosine_similarity.
+    """
+    sim = cosine_similarity_matrix(x, eps=eps)
+    dist = 1.0 - sim
+    return dist
+
+def pairwise_cosine_vector(x):
+    """
+    Returns pairwise Euclidean distances as a vector of size N*(N-1)/2
+    (upper triangular part).
+    """
+    D = cosine_distance_matrix(x)
+    i, j = torch.triu_indices(D.size(0), D.size(0), offset=1)
+    return D[i, j]
+
 class MLMDataset(Dataset):
     def __init__(self, data, token_list, seq_len=20):
         self.seq_len = seq_len
@@ -219,6 +282,98 @@ class BGCClassificationDatasets(Dataset):
         bgc = self.get_sent(item)
         classification = self.get_classification(item)
         bgc_object = self.makeItem(bgc, self.token_list,classification)
+        # Step 2: replace random words in sentence with mask / random words
+        return bgc_object
+
+class BGCRegressionDatasets(Dataset):
+    '''Dataset for classification task'''
+    def __init__(self, data, token_list, values, seq_len=20):
+        #self.tokenizer = tokenizer
+        self.seq_len = seq_len
+        self.token_list = token_list
+        self.corpus_lines = len(data)
+        self.lines = data
+        self.values = values
+    def __len__(self):
+        return self.corpus_lines
+    
+    def get_sent(self, index):
+        '''return random sentence pair'''
+        return self.lines[index]
+    
+    def get_values(self,index):
+        return self.values[index]
+    
+    def makeItem(self, sequence, token_list,regression_value):
+        output_label = []
+        output = []
+        for i, token in enumerate(sequence):
+            #don't change SEP or CLS
+            if token == "SEP" or token == "CLS" or token == "PAD":
+                output.append(token_list.index(token))
+                output_label.append(token_list.index("PAD"))
+                continue
+            
+            
+            output.append(token_list.index(token))
+            output_label.append(token_list.index(token))
+        output = {"bert_input": output,
+              "bert_label": output_label,
+              "regression_value":regression_value}
+        #return {key: torch.tensor(value).cuda() for key, value in output.items()}
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return {key: torch.tensor(value).to(device) for key, value in output.items()}
+    
+    def __getitem__(self, item):
+        bgc = self.get_sent(item)
+        values = self.get_values(item)
+        bgc_object = self.makeItem(bgc, self.token_list,values)
+        # Step 2: replace random words in sentence with mask / random words
+        return bgc_object
+    
+class BGCTargetEmbeddingDataset(Dataset):
+    '''Dataset for target embedding task'''
+    def __init__(self, data, token_list, target_embedding, seq_len=20):
+        #self.tokenizer = tokenizer
+        self.seq_len = seq_len
+        self.token_list = token_list
+        self.corpus_lines = len(data)
+        self.lines = data
+        self.target_embedding = target_embedding
+    def __len__(self):
+        return self.corpus_lines
+    
+    def get_sent(self, index):
+        '''return random sentence pair'''
+        return self.lines[index]
+    
+    def get_target_embedding(self,index):
+        return self.target_embedding[index]
+    
+    def makeItem(self, sequence, token_list,target_embedding):
+        output_label = []
+        output = []
+        for i, token in enumerate(sequence):
+            #don't change SEP or CLS
+            if token == "SEP" or token == "CLS" or token == "PAD":
+                output.append(token_list.index(token))
+                output_label.append(token_list.index("PAD"))
+                continue
+            
+            
+            output.append(token_list.index(token))
+            output_label.append(token_list.index(token))
+        output = {"bert_input": output,
+              "bert_label": output_label,
+              "target_embedding":target_embedding}
+        #return {key: torch.tensor(value).cuda() for key, value in output.items()}
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return {key: torch.tensor(value).to(device) for key, value in output.items()}
+    
+    def __getitem__(self, item):
+        bgc = self.get_sent(item)
+        target_embedding = self.get_target_embedding(item)
+        bgc_object = self.makeItem(bgc, self.token_list,target_embedding)
         # Step 2: replace random words in sentence with mask / random words
         return bgc_object
 
@@ -812,6 +967,39 @@ class BGCMultiLabelClassifier(torch.nn.Module):
         x = self.dense_layers(x)
         x = self.output(x)
         return x
+    
+class BGCRegression(torch.nn.Module):
+    def __init__(self,bgc_mlm, d_model, n_tasks,freeze=False):
+        super(BGCRegression, self).__init__()
+        self.bgc_mlm = bgc_mlm
+        if freeze:
+            for param in bgc_mlm.parameters():           
+                param.requires_grad = False
+        self.dense_layers = torch.nn.Sequential(torch.nn.Linear(d_model,int(d_model)),torch.nn.ReLU())
+        self.output = torch.nn.Sequential(torch.nn.Linear(int(d_model), n_tasks))
+        self.d_model = d_model
+    
+    def forward(self,x):
+        x = self.bgc_mlm(x)
+        x = torch.mean(x,1)
+        x = self.dense_layers(x)
+        x = self.output(x)
+        return x
+    
+class BGCMetricLearning(torch.nn.Module):
+    def __init__(self,bgc_mlm, d_model,d_fp,freeze=False):
+        super(BGCMetricLearning, self).__init__()
+        self.bgc_mlm = bgc_mlm
+        self.d_model = d_model
+        self.dense_layers = torch.nn.Sequential(torch.nn.Linear(d_model,int(d_model)),torch.nn.ReLU())
+        self.output = torch.nn.Sequential(torch.nn.Linear(int(d_model), d_fp))
+        
+    def forward(self,x):
+        x = self.bgc_mlm.embedding(x)
+        x = torch.mean(x,1)
+        x = self.dense_layers(x)
+        x = self.output(x)
+        return x
 
 class BGCMultiLabelTrainier():
     def __init__(
@@ -859,6 +1047,7 @@ class BGCMultiLabelTrainier():
             total=len(data_loader),
             bar_format="{l_bar}{r_bar}"
         )
+        self.model.eval()
         with torch.no_grad():
              for i, data in data_iter:
                  data = {key: value.to(self.device) for key, value in data.items()}
@@ -964,3 +1153,439 @@ class BGCMultiLabelTrainier():
                 f"EP{epoch}, {mode}: \
                     avg_loss={avg_loss / len(data_iter)}"
                     )    
+
+class BGCRegressionTrainier():
+    def __init__(
+        self, 
+        model, 
+        train_dataloader, 
+        val_data,
+        test_dataloader=None, 
+        lr= 1e-4,
+        weight_decay=0.01,
+        betas=(0.9, 0.999),
+        warmup_steps=1000,
+        log_freq=10,
+        device='cpu'
+        ):
+        
+        self.device = device
+        print(device)
+        self.model = model
+        self.train_data = train_dataloader
+        self.test_data = test_dataloader
+        self.val_data = val_data
+        
+         # Setting the AdamW optimizer with hyper-param
+        self.optim = AdamW(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        self.optim_schedule = ScheduledOptim(
+            self.optim, self.model.d_model, n_warmup_steps=warmup_steps
+            )
+        self.criterion = torch.nn.MSELoss()
+        self.log_freq = log_freq
+        self.train_loss_list = []
+        self.val_loss_list= []
+        print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
+    def train(self, epoch):
+        self.iteration(epoch, self.train_data, self.val_data)
+    def test(self, epoch):
+        self.model.eval()
+        self.iteration(epoch, self.train_data, self.val_data, train=False)
+    
+    def predict(self,data, batch_size=2144):
+        data_loader = DataLoader(data, batch_size)
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        self.model.eval()
+        with torch.no_grad():
+             for i, data in data_iter:
+                 data = {key: value.to(self.device) for key, value in data.items()}
+                 predictions = self.model.forward(data["bert_input"])
+                 if i == 0:
+                     all_predictions = predictions
+                 else:
+                     all_predictions = torch.cat((all_predictions, predictions))
+        return all_predictions
+    
+    def validate(self, validation_set, batch_size=2144):
+        val_loader = DataLoader(validation_set, batch_size)
+        print('validating...')
+        data_iter = tqdm.tqdm(
+            enumerate(val_loader),
+            total=len(val_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        avg_loss = 0.0
+        with torch.no_grad():
+            for i, data in data_iter:
+                # 0. batch_data will be sent into the device(GPU or cpu)
+                #print(data)
+                data = {key: value.to(self.device) for key, value in data.items()}
+
+                # 1. forward the next_sentence_prediction and masked_lm model
+                #print(data)
+                model_output = self.model.forward(data["bert_input"])
+                
+                
+                loss = self.criterion(model_output, data["regression_value"].float())
+                
+                avg_loss += loss.item()
+        
+        return avg_loss / (i + 1)
+    def iteration(self, epoch, data_loader, val_data, train=True):
+        avg_loss = 0.0
+        total_correct = 0
+        total_element = 0
+        
+        mode = "train" if train else "test"
+
+        # progress bar
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            desc="EP_%s:%d" % (mode, epoch),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+
+        for i, data in data_iter:
+
+            # 0. batch_data will be sent into the device(GPU or cpu)
+            data = {key: value.to(self.device) for key, value in data.items()}
+
+            # 1. forward the next_sentence_prediction and masked_lm model
+            model_output = self.model.forward(data["bert_input"])
+            #if i == 0:
+             #   print("model output ")
+              #  print(model_output)
+               # print("labels")
+                #print(data["classification_label"])
+            # 2-2. Calc loss
+            # transpose to (m, vocab_size, seq_len) vs (m, seq_len)
+            # criterion(mask_lm_output.view(-1, mask_lm_output.size(-1)), data["bert_label"].view(-1))
+            loss = self.criterion(model_output, data["regression_value"].float())
+
+
+            # 3. backward and optimization only in train
+            if train:
+                self.optim_schedule.zero_grad()
+                loss.backward()
+                self.optim_schedule.step_and_update_lr()
+
+            # next sentence prediction accuracy
+            #correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().item()
+            avg_loss += loss.item()
+            #total_correct += correct
+            #total_element += data["is_next"].nelement()
+            
+            post_fix = {
+                "epoch": epoch,
+                "iter": i,
+                "avg_loss": avg_loss / (i + 1),
+                "loss": loss.item()
+            }
+
+            if i % self.log_freq == 0:
+                data_iter.write(str(post_fix))
+        if train:
+            val_loss = self.validate(val_data, batch_size=64)
+            self.val_loss_list.append(val_loss)
+            self.train_loss_list.append(avg_loss / len(data_iter))
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)},\
+                        val_loss={val_loss}"
+                    )    
+        else:
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)}"
+                    ) 
+                
+class BGCMetricTrainer():
+    def __init__(
+        self, 
+        model, 
+        train_dataloader, 
+        val_data,
+        test_dataloader=None, 
+        lr= 1e-4,
+        weight_decay=0.01,
+        betas=(0.9, 0.999),
+        warmup_steps=1000,
+        log_freq=10,
+        device='cpu',
+        loss_type='correlation'
+        ):
+        
+        self.device = device
+        print(device)
+        self.model = model
+        self.train_data = train_dataloader
+        self.test_data = test_dataloader
+        self.val_data = val_data
+         # Setting the AdamW optimizer with hyper-param
+        self.optim = AdamW(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
+        self.optim_schedule = ScheduledOptim(
+            self.optim, self.model.d_model, n_warmup_steps=warmup_steps
+        )
+        self.loss_type = loss_type
+        if self.loss_type == "correlation":
+            self.criterion = self.correlation_loss
+        elif self.loss_type == "cross_entropy":
+            self.criterion = self.cross_entropy_similarity_loss
+        elif self.loss_type == "triplet":
+            self.criterion = self.triplet_loss
+        self.log_freq = log_freq
+        self.train_loss_list = []
+        self.val_loss_list= []
+        
+        print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
+    
+    def train(self, epoch):
+        self.iteration(epoch, self.train_data, self.val_data)
+        
+    def test(self, epoch):
+        self.model.eval()
+        self.iteration(epoch, self.train_data, self.val_data, train=False)
+        
+    def predict(self,data, batch_size=2144):
+        data_loader = DataLoader(data, batch_size)
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        self.model.eval()
+        with torch.no_grad():
+             for i, data in data_iter:
+                 data = {key: value.to(self.device) for key, value in data.items()}
+                 predictions = self.model.forward(data["bert_input"])
+                 if i == 0:
+                     all_predictions = predictions
+                 else:
+                     all_predictions = torch.cat((all_predictions, predictions))
+        return all_predictions
+    
+    def correlation_loss(self, d_embed, d_target,eps=1e-8,sum_diff_weight=0.1):
+        # d_embed, d_target are shape (num_pairs,)
+        d_embed_centered = d_embed - d_embed.mean()
+        d_target_centered = d_target - d_target.mean()
+
+        numerator = (d_embed_centered * d_target_centered).sum()
+        denominator = torch.sqrt((d_embed_centered**2).sum() * 
+                              (d_target_centered**2).sum() + eps)
+        
+        corr = numerator / denominator
+        #print("CORR")
+        #print(corr)
+        sum_difference = torch.sqrt((d_embed.sum()/int(d_embed.size()[0])-d_target.sum()/int(d_target.size()[0]))**2)
+        #print(d_embed.sum()/int(d_embed.size()[0]))
+        #print(sum_difference)
+        return (1 - corr) #+ 0.1*sum_difference
+    
+    def cross_entropy_similarity_loss(self, z, target_sims, sigma=1.0, eps=1e-8):
+        """
+        z: (B, d)   - embedding vectors
+        target_sims: (B, B) - target similarities (e.g., from cosine, kernels, etc.)
+        Returns: scalar loss
+        """
+        device = z.device
+        B = z.size(0)
+
+        # --- pairwise squared distances in embedding space ---
+        # diff: (B, B, d)
+        diff = z.unsqueeze(1) - z.unsqueeze(0)
+        sqdist = (diff ** 2).sum(dim=-1)  # (B, B)
+
+        # --- embedding similarities q_ij (Gaussian kernel) ---
+        sim = torch.exp(-sqdist / (2.0 * sigma ** 2))  # (B, B)
+
+        # make a mask for the diagonal (i == j)
+        diag_mask = torch.eye(B, dtype=torch.bool, device=device)
+
+        # zero out self-similarities WITHOUT in-place ops
+        sim = sim.masked_fill(diag_mask, 0.0)
+        
+        # normalize rows to get q_ij
+        row_sums_q = sim.sum(dim=1, keepdim=True) + eps
+        q = sim / row_sums_q  # (B, B)
+        
+        # --- target probabilities p_ij from target_sims ---
+        target_sims = target_sims.to(device).float()
+        target_sims = target_sims.masked_fill(diag_mask, 0.0)
+        
+        row_sums_p = target_sims.sum(dim=1, keepdim=True) + eps
+        p = target_sims / row_sums_p  # (B, B)
+        
+        # --- cross-entropy: sum_i sum_j p_ij * log(q_ij) ---
+        # add eps inside log for numerical stability
+        loss = -(p * (q + eps).log()).sum()
+        
+        return loss
+    
+    def triplet_loss(self, anchor, pos, neg, margin=0.1):
+        d_pos = ((anchor - pos)**2).sum(dim=-1).sqrt()
+        d_neg = ((anchor - neg)**2).sum(dim=-1).sqrt()
+        
+        return torch.relu(d_pos - d_neg + margin).mean()
+    
+    # Given target distance matrix D (N, N)
+    def sample_triplets_indices(self, D, num_triplets, tau_pos=0.2, tau_neg=0.2, eps=1e-12):
+        """
+        Sample (anchor, positive, negative) index triplets using a target distance matrix.
+        
+        D: (N, N) target distance matrix (smaller = more similar)
+        num_triplets: number of triplets to sample
+        tau_pos: temperature for positive sampling (smaller -> more strongly favors nearest)
+        tau_neg: temperature for negative sampling (smaller -> more strongly favors farthest)
+        Returns:
+            a, p, n: Long tensors of shape (num_triplets,)
+        """
+        device = D.device
+        N = D.shape[0]
+
+        # sample anchors uniformly
+        a = torch.randint(0, N, (num_triplets,), device=device)
+
+        # gather anchor rows
+        rows = D[a]  # (T, N)
+
+        # ---- POSITIVES: prefer small distances ----
+        tau_pos = max(float(tau_pos), 1e-6)
+        pos_logits = -rows / tau_pos
+
+        # mask self (i == j) in logits
+        pos_logits[torch.arange(num_triplets, device=device), a] = -float("inf")
+
+        pos_probs = torch.softmax(pos_logits, dim=1)
+        p = torch.multinomial(pos_probs, 1).squeeze(1)
+
+        # ---- NEGATIVES: prefer large distances ----
+        tau_neg = max(float(tau_neg), 1e-6)
+        neg_logits = rows / tau_neg
+
+        # mask self again
+        neg_logits[torch.arange(num_triplets, device=device), a] = -float("inf")
+
+        neg_probs = torch.softmax(neg_logits, dim=1)
+        n = torch.multinomial(neg_probs, 1).squeeze(1)
+
+        return a.long(), p.long(), n.long()
+    
+    def validate(self, validation_set, batch_size=2144):
+        val_loader = DataLoader(validation_set, batch_size)
+        print('validating...')
+        data_iter = tqdm.tqdm(
+            enumerate(val_loader),
+            total=len(val_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        avg_loss = 0.0
+        with torch.no_grad():
+            for i, data in data_iter:
+                # 0. batch_data will be sent into the device(GPU or cpu)
+                #print(data)
+                data = {key: value.to(self.device) for key, value in data.items()}
+
+                # 1. forward the next_sentence_prediction and masked_lm model
+                #print(data)
+                model_output = self.model.forward(data["bert_input"])
+                if self.loss_type == "correlation":
+                    d_embed = pairwise_cosine_vector(model_output)
+                    d_target = pairwise_cosine_vector(data["target_embedding"].float())
+                    loss = self.criterion(d_embed, d_target)
+                elif self.loss_type == "cross_entropy":
+                    sim = cosine_similarity_matrix(data["target_embedding"].float())
+                    loss = self.criterion(model_output,sim)
+                elif self.loss_type == "triplet":
+                    d_target = cosine_distance_matrix(data["target_embedding"].float())
+                    a, p, n = self.sample_triplets_indices(d_target, 2048, tau_pos=0.1, tau_neg=0.1)
+                    
+                    loss = self.criterion(model_output[a], model_output[p], model_output[n], margin=0.1)
+            
+                avg_loss += loss.item()
+        
+        return avg_loss / (i + 1)
+    
+    def iteration(self, epoch, data_loader, val_data, train=True):
+        avg_loss = 0.0
+        mode = "train" if train else "test"
+
+        # progress bar
+        data_iter = tqdm.tqdm(
+            enumerate(data_loader),
+            desc="EP_%s:%d" % (mode, epoch),
+            total=len(data_loader),
+            bar_format="{l_bar}{r_bar}"
+        )
+        
+        for i, data in data_iter:
+            # 0. batch_data will be sent into the device(GPU or cpu)
+            data = {key: value.to(self.device) for key, value in data.items()}
+            
+            # 1. forward the next_sentence_prediction and masked_lm model
+            model_output = self.model.forward(data["bert_input"])
+            if self.loss_type == "correlation":
+                # calculate distances
+                d_embed = pairwise_cosine_vector(model_output)
+                d_target = pairwise_cosine_vector(data["target_embedding"].float())
+                #print()
+                #print(d_embed)
+                #print(d_target)
+                #print()
+                # 2-2. Calc loss
+                # transpose to (m, vocab_size, seq_len) vs (m, seq_len)
+                # criterion(mask_lm_output.view(-1, mask_lm_output.size(-1)), data["bert_label"].view(-1))
+                loss = self.criterion(d_embed, d_target)
+            elif self.loss_type == "cross_entropy":
+                sim = cosine_similarity_matrix(data["target_embedding"].float())
+                loss = self.criterion(model_output,sim)
+            elif self.loss_type == "triplet":
+                d_target = cosine_distance_matrix(data["target_embedding"].float())
+                a, p, n = self.sample_triplets_indices(d_target, 2048, tau_pos=0.1, tau_neg=0.1)
+
+                loss = self.criterion(model_output[a], model_output[p], model_output[n], margin=0.1)
+            
+            # 3. backward and optimization only in train
+            if train:
+                self.optim_schedule.zero_grad()
+                loss.backward()
+                self.optim_schedule.step_and_update_lr()
+
+            # next sentence prediction accuracy
+            #correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().item()
+            avg_loss += loss.item()
+            #total_correct += correct
+            #total_element += data["is_next"].nelement()
+            
+            post_fix = {
+                "epoch": epoch,
+                "iter": i,
+                "avg_loss": avg_loss / (i + 1),
+                "loss": loss.item()
+            }
+
+            if i % self.log_freq == 0:
+                data_iter.write(str(post_fix))
+        if train:
+            val_loss = self.validate(val_data, batch_size=64)
+            self.val_loss_list.append(val_loss)
+            self.train_loss_list.append(avg_loss / len(data_iter))
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)},\
+                        val_loss={val_loss}"
+                    )    
+        else:
+            print(
+                f"EP{epoch}, {mode}: \
+                    avg_loss={avg_loss / len(data_iter)}"
+                    ) 
+        
+    
+    
+        
+    

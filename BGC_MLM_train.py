@@ -21,7 +21,7 @@ import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
 import BGC_MLM_tools
-torch.manual_seed(0)
+
 
 #TODO: try type of position encoder used by ESM?
 #TODO: try using ESM PFAM encondings
@@ -35,9 +35,10 @@ parser.add_argument('n_layers',type=int)           # positional argument
 parser.add_argument('heads',type=int)           # positional argument
 parser.add_argument('dropout',type=float)           # positional argument
 parser.add_argument('batch_size',type=int) #batch size
+parser.add_argument('--seed',type=int,default=0) #batch size
 
 args = parser.parse_args()
-
+torch.manual_seed(args.seed)
 print(args.model_name + "\n")
 print("unknown threshold: " + str(args.unknown_threshold) + "\n")
 print("max BGC length: " + str(args.max_bgc_length) + "\n")
