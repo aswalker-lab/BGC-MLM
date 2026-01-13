@@ -18,23 +18,24 @@ import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
 import tools.BGC_MLM_tools
+from src.utils import arg_parse
+from sys import argv
 
-#TODO: make some of these arguments in a parameters file?
-
+args = arg_parse.parse_args("predict_sequence", argv[1:])
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
 
-#TODO: make in dir an argument and fix train.txt to have shorter path
+# TODO: make in dir an argument and fix train.txt to have shorter path
 data_file = open(args.data_set)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-#load token list
+# load token list
 token_list = []
 token_list_file = open("token_list_" + str(unknown_threshold) + "_" + str(max_bgc_length) + ".txt")
 for line in token_list_file:
     token_list.append(line.replace("\n",""))
-    
-#load model from file
+
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -119,8 +120,8 @@ for i in range(0, len(bgc_tokens)):
         outfile_score.write(","+str(avg_max_val))
     outfile_acc.write("\n")
     outfile_score.write("\n")
-    
-    
+
+
 avg_loss /= max_bgc_length
 avg_accuracy /= max_bgc_length
 avg_5_accuracy /= max_bgc_length

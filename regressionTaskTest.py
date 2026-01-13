@@ -22,8 +22,10 @@ import tools.BGC_MLM_tools
 from sklearn.metrics import mean_squared_error, mean_absolute_error 
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
+from src.utils import arg_parse
+from sys import argv
 
-
+args = arg_parse.parse_args("regression_task", argv[1:])
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
@@ -58,7 +60,7 @@ for line in regression_file:
         for val in split_line[1:len(split_line)]:
         #for val in split_line[1:4]:
             bgc_values[bgc_name].append(float(val))
-            
+
 i= 0
 for line in test_data_file:
     filename = line.replace("\n","")
@@ -94,7 +96,7 @@ for name in bgc_names:
     y_vals.append(bgc_values[name])
 
 
-#load model from file
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,

@@ -22,12 +22,14 @@ import tools.BGC_MLM_tools
 from sklearn.metrics import mean_squared_error, mean_absolute_error 
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
+from src.utils import arg_parse
+from sys import argv
 
-
+args = arg_parse.parse_args("regression_mask_effect", argv[1:])
 torch.manual_seed(args.seed)
 output_index = args.output_index
 
-#read model parameters
+# read model parameters
 for line in open(args.model_param_file):
     split_line = line.split(",")
     unknown_threshold = int(split_line[0])
@@ -86,8 +88,8 @@ for i in range(0, args.num_tasks):
     y.append(0)
 for name in bgc_names: 
     y_vals.append(y)
-    
-#load model from file
+
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -105,7 +107,7 @@ regression_model = BGC_MLM_tools.BGCRegression(mlm.bgc_mlm,d_model,len(y_vals[0]
 regression_model.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 regression_model.to(device)
 
-#do base predictions for each BGC
+# do base predictions for each BGC
 regression_dataset = BGC_MLM_tools.BGCRegressionDatasets(
    bgc_tokens, token_list, y_vals, seq_len=max_bgc_length)
 
@@ -120,7 +122,7 @@ test_predictions = bert_trainer.predict(regression_dataset,batch_size=batch_size
 unmasked_prediction = test_predictions[0,output_index]
 print(test_predictions[0,output_index])
 
-#do masked predictions for each BGC
+# do masked predictions for each BGC
 predictions = {}
 for i in range(1,len(bgc_token)):
     token = bgc_tokens[0][i]

@@ -23,10 +23,10 @@ from sklearn.metrics import (
     f1_score, precision_score, recall_score,
     jaccard_score, hamming_loss
 )
-from sys import argv
 from src.utils import arg_parse
+from sys import argv
 
-args = arg_parse.parse("classificationTask", argv[1:])
+args = arg_parse.parse_args("classification_task_test", argv[1:])
 
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
@@ -74,7 +74,7 @@ for line in classification_file:
                 classification_counts[classification_types[i]] += 1
                 total_count += 1
             i += 1
-            
+
 
 i= 0
 for line in test_data_file:
@@ -114,7 +114,7 @@ pos_weights = []
 for i in range(0,len(y_vals[0])):
     pos_weights.append(1)
 
-#load model from file
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -159,7 +159,7 @@ true_y = []
 for j, data in data_iter:
     #print(data["classification_label"].shape)
     true_y.append(data["classification_label"].detach().cpu().numpy().ravel())
-    
+
 true_y = np.array(true_y)
 predicted_y = test_predictions.detach().cpu().numpy()
 predicted_y_class = predicted_y > 0.5 #[x >0.5 for x in predicted_y]
@@ -192,5 +192,5 @@ outfile.write(str(jaccard_samples)+ ",")
 outfile.write(str(hloss)+ "\n")
 
 
-#outfile.write(str(accuracy) + "," + str(balanced_accuracy) + "," + str(precision) + "," + str(recall) + "," + str(roc_auc) + "," + str(prc_auc) + "\n")
+# outfile.write(str(accuracy) + "," + str(balanced_accuracy) + "," + str(precision) + "," + str(recall) + "," + str(roc_auc) + "," + str(prc_auc) + "\n")
 outfile.close()

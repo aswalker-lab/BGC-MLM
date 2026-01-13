@@ -23,7 +23,7 @@ from src.utils import arg_parse
 from sys import argv
 
 
-args = arg_parse.parse("classificationTask", argv[1:])
+args = arg_parse.parse_args("classificationTask", argv[1:])
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length

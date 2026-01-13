@@ -25,8 +25,10 @@ from rdkit.DataStructs.cDataStructs import ExplicitBitVect
 from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem import MACCSkeys
+from src.utils import arg_parse
+from sys import argv
 
-
+args = arg_parse.parse_args("fp_rank_genome", argv[1:])
 def list_to_bitvect(bits):
     bv = ExplicitBitVect(len(bits))
     for i, bit in enumerate(bits):
@@ -38,8 +40,7 @@ def list_to_bitvect(bits):
 torch.manual_seed(args.seed)
 
 
-
-#read model parameters
+# read model parameters
 for line in open(args.model_param_file):
     split_line = line.split(",")
     unknown_threshold = int(split_line[0])
@@ -55,7 +56,7 @@ token_list = []
 token_list_file = open("token_list_" + str(unknown_threshold) + "_" + str(max_bgc_length) + ".txt")
 for line in token_list_file:
     token_list.append(line.replace("\n",""))
-    
+
 mol = Chem.MolFromSmiles(args.smiles)
 if args.fp_type == "morgan":
     fp_generator = rdFingerprintGenerator.GetMorganGenerator(radius=2,fpSize=args.fp_size)
@@ -76,7 +77,7 @@ else:
 
 if args.fp_type != "maccs":
     fp = fp_generator.GetFingerprint(mol)
-    
+
 
 genome_bgc_tokens = []
 genome_bgc_names = []
@@ -117,8 +118,8 @@ for i in range(0, len(fp)):
     y.append(0)
 for name in genome_bgc_names: 
     y_vals.append(y)
-    
-#load model from file
+
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,

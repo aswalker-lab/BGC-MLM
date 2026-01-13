@@ -22,7 +22,10 @@ import tools.BGC_MLM_tools
 from sklearn.metrics import classification_report
 from rdkit import DataStructs
 from rdkit.DataStructs.cDataStructs import ExplicitBitVect
+from src.utils import arg_parse
+from sys import argv
 
+args = arg_parse.parse_args("fp_rank_metrics", argv[1:])
 def list_to_bitvect(bits):
     bv = ExplicitBitVect(len(bits))
     for i, bit in enumerate(bits):
@@ -55,7 +58,6 @@ def find_rank(bgc_name,sorted_dic,fps):
         if found_match:
             break
     return len(bgcs_ranked_above), correct_score
-
 
 
 torch.manual_seed(args.seed)
@@ -176,7 +178,7 @@ for name in comparison_bgc_names:
         y.append(0)
     comparison_y_vals.append(y)
 
-#load model from file
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -235,7 +237,7 @@ if not os.path.isfile(outprefix + "_rankings_mol_to_bgc.txt"):
 else:
     outfile_mol_to_bgc = open(outprefix + "_rankings_mol_to_bgc.txt",'a')
 
-#Ranking of correct moleucules (BGC to molecule)
+# Ranking of correct moleucules (BGC to molecule)
 avg_top_rank_cos = 0
 avg_top_rank_tanimoto = 0
 avg_cos_correct = 0
@@ -294,9 +296,8 @@ outfile_bgc_to_mol.write("," + str(top_10_correct_tani))
 outfile_bgc_to_mol.write("," + str(avg_tani_correct)+"\n")
 outfile_bgc_to_mol.close()
 
-    
-    
-#Ranking of correct BGCs (molecule to BGC)
+
+# Ranking of correct BGCs (molecule to BGC)
 total_molecules = 0
 avg_top_rank_cos = 0
 avg_top_rank_tanimoto = 0

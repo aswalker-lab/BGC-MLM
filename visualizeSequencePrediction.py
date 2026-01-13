@@ -6,9 +6,9 @@ Created on Sat Nov 22 16:37:59 2025
 """
 #!/usr/bin/env python3
 #!/usr/bin/env python3
-import argparse
 from pathlib import Path
-
+from src.utils import arg_parse
+from sys import argv
 from Bio import SeqIO
 
 
@@ -419,7 +419,7 @@ body {{
 
 def main():
     
-
+    args = arg_parse.parse_args("visualize_sequence", argv[1:])
     gbk_path = Path(args.gbk)
     out_path = Path(args.output)
 

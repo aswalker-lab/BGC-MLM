@@ -26,7 +26,10 @@ from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem import MACCSkeys
 
+from src.utils import arg_parse
+from sys import argv
 
+args = arg_parse.parse_args("predicted_fps_similarity", argv[1:])
 def list_to_bitvect(bits):
     bv = ExplicitBitVect(len(bits))
     for i, bit in enumerate(bits):
@@ -42,7 +45,7 @@ if args.fp_type == "maccs":
 else:
     fp_size = args.fp_size
 
-#read model parameters
+# read model parameters
 for line in open(args.model_param_file):
     split_line = line.split(",")
     unknown_threshold = int(split_line[0])
@@ -58,7 +61,7 @@ token_list = []
 token_list_file = open("token_list_" + str(unknown_threshold) + "_" + str(max_bgc_length) + ".txt")
 for line in token_list_file:
     token_list.append(line.replace("\n",""))
-    
+
 bgc_tokens = []
 bgc_names = []
 
@@ -101,8 +104,8 @@ for i in range(0, fp_size):
     y.append(0)
 for name in bgc_names: 
     y_vals.append(y)
-    
-#load model from file
+
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,

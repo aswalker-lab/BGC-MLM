@@ -32,7 +32,7 @@ import torch.nn.functional as F
 from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
-import tools.default_parse
+from src.utils import arg_parse
 import tools.BGC_MLM_tools
 from sys import argv
 
@@ -278,7 +278,7 @@ class BGCTrainer:
 
 if __name__ == "__main__":
     # Parse command line arguments
-    args_dict = tools.default_parse.parse("BGC_MLM_train", argv[1:])
+    args_dict = arg_parse.parse_args("BGC_MLM_train", argv[1:])
     
     # Create trainer instance
     trainer = BGCTrainer(vars(args_dict))

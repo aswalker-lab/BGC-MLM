@@ -22,8 +22,10 @@ import tools.BGC_MLM_tools
 from sklearn.metrics import mean_squared_error, mean_absolute_error 
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
+from src.utils import arg_parse
+from sys import argv
 
-
+args = arg_parse.parse_args("regression_task", argv[1:])
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
@@ -37,7 +39,7 @@ token_list_file = open("token_list_" + str(unknown_threshold) + "_" + str(max_bg
 for line in token_list_file:
     token_list.append(line.replace("\n",""))
 
-#load model from file
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -75,7 +77,7 @@ for line in regression_file:
         for val in split_line[1:len(split_line)]:
         #for val in split_line[1:4]:
             bgc_values[bgc_name].append(float(val))
-            
+
 i= 0
 for line in training_data_file:
     filename = line.replace("\n","")
@@ -122,7 +124,7 @@ else:
     unmasked_loader = DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
-#using pretrained model
+# using pretrained model
 freeze=True
 if args.freeze == 0:
     freeze = False
@@ -147,13 +149,13 @@ for epoch in range(epochs):
       for i in range(0, len(bert_trainer.train_loss_list)):
           loss_outfile.write(str(i) + "," + str(bert_trainer.train_loss_list[i]) + "," + str(bert_trainer.val_loss_list[i]) + "\n")
       loss_outfile.close()
-   
+
 loss_outfile = open("regression_loss_file.txt",'w')
 for i in range(0, len(bert_trainer.train_loss_list)):
     loss_outfile.write(str(i) + "," + str(bert_trainer.train_loss_list[i]) + "," + str(bert_trainer.val_loss_list[i]) + "\n")
 loss_outfile.close()
 
-#check metrics
+# check metrics
 val_predictions = bert_trainer.predict(val_set,batch_size=args.batch_size)
 train_predictions = bert_trainer.predict(train_set,batch_size=args.batch_size)
 val_loader = DataLoader(

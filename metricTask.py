@@ -20,9 +20,10 @@ from torch.utils.data import Dataset, DataLoader
 import argparse
 import tools.BGC_MLM_tools
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score
+from src.utils import arg_parse
+from sys import argv
 
-
-
+args = arg_parse.parse_args("metric_task", argv[1:])
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
@@ -36,7 +37,7 @@ token_list_file = open("token_list_" + str(unknown_threshold) + "_" + str(max_bg
 for line in token_list_file:
     token_list.append(line.replace("\n",""))
 
-#load model from file
+# load model from file
 bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
@@ -77,7 +78,7 @@ for line in fp_file:
         for val in split_line[1:len(split_line)]:
         #for val in split_line[1:4]:
             fps[bgc_name].append(int(val))
-            
+
 i= 0
 for line in training_data_file:
     filename = line.replace("\n","")
@@ -112,7 +113,7 @@ print(str(len(bgc_tokens)) + " BGCs under length threshold")
 target_embedding = []
 for name in bgc_names: 
     target_embedding.append(fps[name])
-    
+
 target_embedding_dataset = BGC_MLM_tools.BGCTargetEmbeddingDataset(
    bgc_tokens, token_list, target_embedding, seq_len=max_bgc_length)
 
@@ -125,7 +126,7 @@ else:
     unmasked_loader = DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
-#using pretrained model
+# using pretrained model
 target_embedding_model = BGC_MLM_tools.BGCMetricLearning(mlm.bgc_mlm,args.d_model,args.fp_size)
 bert_trainer = BGC_MLM_tools.BGCMetricTrainer(target_embedding_model, unmasked_loader, val_set,device=device,loss_type=args.loss_type)   
 epochs = args.epochs
@@ -146,7 +147,7 @@ for epoch in range(epochs):
       for i in range(0, len(bert_trainer.train_loss_list)):
           loss_outfile.write(str(i) + "," + str(bert_trainer.train_loss_list[i]) + "," + str(bert_trainer.val_loss_list[i]) + "\n")
       loss_outfile.close()
-   
+
 loss_outfile = open("classification_loss_file.txt",'w')
 for i in range(0, len(bert_trainer.train_loss_list)):
     loss_outfile.write(str(i) + "," + str(bert_trainer.train_loss_list[i]) + "," + str(bert_trainer.val_loss_list[i]) + "\n")
@@ -154,5 +155,3 @@ loss_outfile.close()
 
 
 torch.save(target_embedding_model.state_dict(), args.model_name + "_" +args.model_output)
-
-
