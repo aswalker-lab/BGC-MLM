@@ -22,25 +22,7 @@ import tools.BGC_MLM_tools
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score
 
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('unknown_threshold',type=int)           # positional argument
-parser.add_argument('max_bgc_length',type=int)           # positional argument
-parser.add_argument('d_model',type=int)           # positional argument
-parser.add_argument('n_layers',type=int)           # positional argument
-parser.add_argument('heads',type=int)           # positional argument
-parser.add_argument('droupout',type=float)           # positional argument
-parser.add_argument('batch_size',type=int) #batch size
-parser.add_argument('data_set',type=str) #path to dataset file with features
-parser.add_argument('fp_file',type=str) # file containing fingerprints for BGC
-parser.add_argument('token_path',type=str) #path to directory with tokens
-parser.add_argument('--seed',type=int,default=0) #random seed
-parser.add_argument('--model_output',type=str,default="metric") #output name for classifier
-parser.add_argument('--epochs',type=int,default=50) #output name for classifier
-parser.add_argument('--train_fraction',type=float,default=0.9) #fraction to use for training, remaining will be val
-parser.add_argument('--fp_size',type=int,default=8192) #fraction to use for training, remaining will be val
-parser.add_argument('--loss_type',type=str,default="correlation")
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length

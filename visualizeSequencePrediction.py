@@ -418,16 +418,7 @@ body {{
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Render a biosynthetic gene cluster with PFAM domains and an aligned score graph."
-    )
-    parser.add_argument("gbk", help="Input GenBank file")
-    parser.add_argument("acc",help="BGC-MLM accuracy file")
-    parser.add_argument("score",help="BGC-MLM score file")
-    parser.add_argument(
-        "-o", "--output", help="Output HTML file", default="bgc_visualization.html"
-    )
-    args = parser.parse_args()
+    
 
     gbk_path = Path(args.gbk)
     out_path = Path(args.output)

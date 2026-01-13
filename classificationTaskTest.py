@@ -16,25 +16,12 @@ import torch.nn.functional as F
 from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
-import argparse
 import tools.BGC_MLM_tools
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score, average_precision_score
+from sys import argv
+from src.utils import arg_parse
 
-
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('unknown_threshold',type=int)           # positional argument
-parser.add_argument('max_bgc_length',type=int)           # positional argument
-parser.add_argument('d_model',type=int)           # positional argument
-parser.add_argument('n_layers',type=int)           # positional argument
-parser.add_argument('heads',type=int)           # positional argument
-parser.add_argument('droupout',type=float)           # positional argument
-parser.add_argument('batch_size',type=int) #batch size
-parser.add_argument('data_set',type=str) #path to dataset file with features
-parser.add_argument('classification_file',type=str) # file containing classifications for BGCs
-parser.add_argument('token_path',type=str) #path to directory with tokens
-parser.add_argument('--seed',type=int,default=0) #random seed
-args = parser.parse_args()
+args = arg_parse.parse("classificationTask", argv[1:])
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length

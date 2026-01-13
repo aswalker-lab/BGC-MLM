@@ -34,7 +34,7 @@ import tqdm
 from torch.utils.data import Dataset, DataLoader
 import tools.default_parse
 import tools.BGC_MLM_tools
-import sys
+from sys import argv
 
 
 class BGCTrainer:
@@ -278,10 +278,10 @@ class BGCTrainer:
 
 if __name__ == "__main__":
     # Parse command line arguments
-    args_dict = tools.default_parse.parse("BGC_MLM_train", sys.argv[1:])
+    args_dict = tools.default_parse.parse("BGC_MLM_train", argv[1:])
     
     # Create trainer instance
-    trainer = BGCTrainer(args_dict)
+    trainer = BGCTrainer(vars(args_dict))
     
     # Execute pipeline
     trainer.load_data()

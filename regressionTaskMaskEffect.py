@@ -23,15 +23,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('model_param_file')           # positional argument
-parser.add_argument('data_set',type=str) #path to dataset file with features
-parser.add_argument('token_path',type=str) #path to directory with tokens
-parser.add_argument('output_index',type=int) #path to directory with tokens
-parser.add_argument('--seed',type=int,default=0) #random seed
-parser.add_argument('--num_tasks',type=int,default=40) #number of tasks being predicted
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 output_index = args.output_index
 

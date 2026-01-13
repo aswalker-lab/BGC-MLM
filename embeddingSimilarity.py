@@ -26,15 +26,7 @@ from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem import MACCSkeys
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('model_param_file')           # positional argument
-parser.add_argument('infile',type=str) #list of BGC ids for which to calculate similarity
-parser.add_argument('token_path',type=str) #path to directory with tokens from genome
-parser.add_argument('outfile',type=str) #outfile prefix for similarity calculaiton
-parser.add_argument('--seed',type=int,default=0) #random seed
-parser.add_argument('--fp_size',type=int,default=8192) #fraction to use for training, remaining will be val
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 
 #read model parameters

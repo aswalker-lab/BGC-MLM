@@ -23,22 +23,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('unknown_threshold',type=int)           # positional argument
-parser.add_argument('max_bgc_length',type=int)           # positional argument
-parser.add_argument('d_model',type=int)           # positional argument
-parser.add_argument('n_layers',type=int)           # positional argument
-parser.add_argument('heads',type=int)           # positional argument
-parser.add_argument('droupout',type=float)           # positional argument
-parser.add_argument('batch_size',type=int) #batch size
-parser.add_argument('data_set',type=str) #path to dataset file with features
-parser.add_argument('regression_file',type=str) # file containing classifications for BGC
-parser.add_argument('token_path',type=str) #path to directory with tokens
-parser.add_argument('--seed',type=int,default=0) #random seed
-parser.add_argument('--model_output',type=str,default="regression") #output name for classifier
-parser.add_argument('--freeze',type=int,default=1) #output name for classifier
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length

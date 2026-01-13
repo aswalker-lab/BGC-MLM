@@ -20,18 +20,7 @@ import argparse
 import tools.BGC_MLM_tools
 
 #TODO: make some of these arguments in a parameters file?
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('unknown_threshold',type=int)           # positional argument
-parser.add_argument('max_bgc_length',type=int)           # positional argument
-parser.add_argument('d_model',type=int)           # positional argument
-parser.add_argument('n_layers',type=int)           # positional argument
-parser.add_argument('heads',type=int)           # positional argument
-parser.add_argument('dropout',type=float)           # positional argument
-parser.add_argument('batch_size',type=int) #batch size
-parser.add_argument('data_set',type=str) #path to dataset file
 
-args = parser.parse_args()
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length
 

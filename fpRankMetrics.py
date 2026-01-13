@@ -57,20 +57,7 @@ def find_rank(bgc_name,sorted_dic,fps):
     return len(bgcs_ranked_above), correct_score
 
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('unknown_threshold',type=int)           # positional argument
-parser.add_argument('max_bgc_length',type=int)           # positional argument
-parser.add_argument('d_model',type=int)           # positional argument
-parser.add_argument('n_layers',type=int)           # positional argument
-parser.add_argument('heads',type=int)           # positional argument
-parser.add_argument('droupout',type=float)           # positional argument
-parser.add_argument('batch_size',type=int) #batch size
-parser.add_argument('data_set',type=str) #path to dataset file with features
-parser.add_argument('comparison_set',type=str) # file with molecule fp links to rank
-parser.add_argument('token_path',type=str) #path to directory with tokens
-parser.add_argument('--seed',type=int,default=0) #random seed
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 unknown_threshold = args.unknown_threshold
 max_bgc_length = args.max_bgc_length

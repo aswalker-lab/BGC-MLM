@@ -34,16 +34,7 @@ def list_to_bitvect(bits):
             bv.SetBit(i)
     return bv
 
-parser = argparse.ArgumentParser()            
-parser.add_argument('model_name')           # positional argument
-parser.add_argument('model_param_file')           # positional argument
-parser.add_argument('infile',type=str) #list of BGC ids for which to calculate similarity
-parser.add_argument('token_path',type=str) #path to directory with tokens from genome
-parser.add_argument('outfile',type=str) #outfile prefix for similarity calculaiton
-parser.add_argument('--seed',type=int,default=0) #random seed
-parser.add_argument('--fp_type',type=str,default="morgan") #fingerprint type
-parser.add_argument('--fp_size',type=int,default=2048) #fingerprint length
-args = parser.parse_args()
+
 torch.manual_seed(args.seed)
 
 if args.fp_type == "maccs":
