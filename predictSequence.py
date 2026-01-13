@@ -17,7 +17,7 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import BGC_MLM_tools
+import tools.BGC_MLM_tools
 
 #TODO: make some of these arguments in a parameters file?
 parser = argparse.ArgumentParser()            

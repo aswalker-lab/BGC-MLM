@@ -19,7 +19,7 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import BGC_MLM_tools
+import tools.BGC_MLM_tools
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score
 
 

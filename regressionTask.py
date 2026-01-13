@@ -18,7 +18,7 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import BGC_MLM_tools
+import tools.BGC_MLM_tools
 from sklearn.metrics import mean_squared_error, mean_absolute_error 
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr

@@ -18,7 +18,7 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import BGC_MLM_tools
+import tools.BGC_MLM_tools
 from sklearn.metrics import classification_report
 from rdkit import DataStructs
 from rdkit.DataStructs.cDataStructs import ExplicitBitVect
