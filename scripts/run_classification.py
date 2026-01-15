@@ -4,19 +4,18 @@ run_classification.py (Refactored)
 
 Consolidates classificationTask, classificationTaskFromScratch, and classificationTaskTest.
 """
-
-import os
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 import torch
 import math
 import numpy as np
 from torch.utils.data import DataLoader, random_split
-from sys import argv
-from src.data import datasets
-from src.utils import arg_parse
-from src.models.architecture import MLM, BGC_MLM
-from src.data.loading import (load_token_list, parse_classification_file, 
+from data import datasets
+from utils import arg_parse
+from models.architecture import MLM, BGC_MLM
+from data.loading import (load_token_list, parse_classification_file, 
                               load_bgc_tokens)
-from src.utils.metrics import evaluate_classification
+from utils.metrics import evaluate_classification
 
 def main():
     args = arg_parse.parse_args("run_classification", argv[1:])

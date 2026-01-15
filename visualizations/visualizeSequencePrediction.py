@@ -4,8 +4,6 @@ Created on Sat Nov 22 16:37:59 2025
 
 @author: Allison Walker
 """
-#!/usr/bin/env python3
-#!/usr/bin/env python3
 from pathlib import Path
 from src.utils import arg_parse
 from sys import argv

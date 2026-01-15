@@ -5,21 +5,21 @@ run_regression.py (Refactored)
 Consolidates regressionTask, regressionTaskFromScratch, and regressionTaskTest.
 """
 
-import os
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 import torch
 import math
 import numpy as np
 from torch.utils.data import DataLoader, random_split
-from sys import argv
-
-import tools.BGC_MLM_tools as BGC_MLM_tools
-from src.utils import arg_parse
-from src.data.loading import (load_token_list, parse_regression_file, 
+from data import datasets
+from models.architecture import MLM, BGC_MLM
+from utils import arg_parse
+from data.loading import (load_token_list, parse_regression_file, 
                               load_bgc_tokens)
-from src.utils.metrics import evaluate_regression
+from utils.metrics import evaluate_regression
 
 def main():
-    args = arg_parse.parse_args("run_regression", argv[1:])
+    args = arg_parse.parse_args("run_regression", sys.argv[1:])
     
     # Set seed
     if args.seed:

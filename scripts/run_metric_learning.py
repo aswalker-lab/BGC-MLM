@@ -5,20 +5,21 @@ run_metric_learning.py (Refactored)
 Consolidates metricTask and metricTaskFromScratch.
 """
 
-import os
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 import torch
 import math
 import numpy as np
 from torch.utils.data import DataLoader, random_split
-from sys import argv
-
-import tools.BGC_MLM_tools as BGC_MLM_tools
-from src.utils import arg_parse
-from src.data.loading import (load_token_list, parse_fp_file, 
+from data import datasets
+from models.architecture import MLM, BGC_MLM, BGCMetricLearning
+from training.trainer import BGCMetricTrainer
+from utils import arg_parse
+from data.loading import (load_token_list, parse_fp_file, 
                               load_bgc_tokens)
 
 def main():
-    args = arg_parse.parse_args("run_metric_learning", argv[1:])
+    args = arg_parse.parse_args("run_metric_learning", sys.argv[1:])
     
     # Set seed
     if args.seed:
@@ -47,7 +48,7 @@ def main():
     for name in bgc_names:
         target_embedding.append(fps[name])
         
-    dataset = BGC_MLM_tools.BGCTargetEmbeddingDataset(
+    dataset = datasets.BGCTargetEmbeddingDataset(
         bgc_tokens, token_list, target_embedding, seq_len=args.max_bgc_length
     )
     
@@ -76,7 +77,7 @@ def main():
 
     # 3. Model Initialization
     print("Initializing model...")
-    bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+    bgc_mlm_model = BGC_MLM(
         vocab_size=len(token_list),
         seq_len=args.max_bgc_length,
         d_model=args.d_model,
@@ -85,7 +86,7 @@ def main():
         dropout=args.dropout
     )
     
-    mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
+    mlm = MLM(bgc_mlm_model, len(token_list))
     
     # Note: metricTask doesn't use freeze arg? 
     # BGCMetricLearning allows freeze arg in init?
@@ -94,7 +95,7 @@ def main():
     # original script: target_embedding_model = BGC_MLM_tools.BGCMetricLearning(mlm.bgc_mlm,args.d_model,args.fp_size)
     # So it uses default freeze=False.
     
-    metric_model = BGC_MLM_tools.BGCMetricLearning(
+    metric_model = BGCMetricLearning(
         mlm.bgc_mlm,
         args.d_model,
         args.fp_size,
@@ -117,7 +118,7 @@ def main():
     val_dataset_for_trainer = dataset if args.evaluate_only else val_set
     train_loader_for_trainer = None if args.evaluate_only else train_loader
     
-    bert_trainer = BGC_MLM_tools.BGCMetricTrainer(
+    bert_trainer = BGCMetricTrainer(
         metric_model, 
         train_loader_for_trainer, 
         val_dataset_for_trainer, 
