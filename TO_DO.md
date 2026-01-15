@@ -11,8 +11,6 @@
 - write shell scripts to run code
 - provide environment dependencies as yaml or requirements.txt
 - setup tests to run shell scripts and validate pipeline still works, to verify refactoring and code edits don't break functionality
-- 
-
 
 Notes
 - setup acchre for data access
