@@ -203,3 +203,18 @@ def load_bgc_tokens(data_set_file, token_path, token_list, max_bgc_length, known
             
     print(str(len(bgc_tokens)) + " BGCs under length threshold")
     return bgc_tokens, bgc_names
+
+
+def load_data(data_file: str, columns: dict):
+    """
+    Primary entrance point for data loading. Takes in path to data file and dict that maps column names to file paths
+    """
+    pass
+    """
+    Function cannot be implemented until file/data structure better understood. 
+    Likely I will want to reorganize the data so that everything is contained in a single file but it will depend on the available data.
+    Output from this function should be ready to directly pass to the dataset module, although the method of preprocessing the data has not been 
+    entirely decided yet. Likely I want to build a scheduler for token masking which maybe is included as a part of the training module, the main
+    thing is of course that I will want to precompute everything I can to prevent that from being a bottleneck in the computation especially if we have
+    to repeat the training many times.
+    """
