@@ -3,7 +3,9 @@ masked language foundation model for biosynthetic gene clusters
 
 
 # Functionalities
-
+- Centralized parsing for CLI arguments
+- Generic dataset creation for classification, regression, and metric learning tasks
+- 
 
 # Setup and Usage
 ### Environment Setup

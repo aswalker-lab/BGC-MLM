@@ -8,3 +8,4 @@ __pycache__/*
 slurm_output*
 requirements.txt
 WalkerLab2026
+BGC-MLM-old
