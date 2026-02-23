@@ -3,3 +3,8 @@ __pycache__/*
 */__pycache__/*
 .devcontainer
 */personal_tools/*
+*.db
+*toDelete*
+slurm_output*
+requirements.txt
+WalkerLab2026
