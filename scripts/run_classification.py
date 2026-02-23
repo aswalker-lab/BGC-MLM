@@ -30,7 +30,7 @@ def main():
 
     # 1. Load Data
     print("Loading data...")
-    token_list = load_token_list(args.unknown_threshold, args.max_bgc_length)
+    token_list = load_token_list(args.data_set, args.unknown_threshold)
     
     classification_types, classification_counts, bgc_classifications, total_count = \
         parse_classification_file(args.classification_file)
@@ -42,7 +42,6 @@ def main():
     # Original scripts check "if filename not in bgc_classifications: continue"
     bgc_tokens, bgc_names = load_bgc_tokens(
         args.data_set, 
-        args.token_path, 
         token_list, 
         args.max_bgc_length,
         known_bgcs=bgc_classifications

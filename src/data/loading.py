@@ -1,29 +1,29 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 14 2025
-
-@author: Allison Walker (Refactored)
-"""
 
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-def load_token_list(unknown_threshold, max_bgc_length):
+import sqlite3
+
+def load_token_list(db_path, unknown_threshold):
     """
-    Loads the token list from a file named based on threshold and length.
+    Loads the token list from the SQLite database filtering by prevalence threshold.
     """
     token_list = []
-    filename = "token_list_" + str(unknown_threshold) + "_" + str(max_bgc_length) + ".txt"
     try:
-        token_list_file = open(filename)
-        for line in token_list_file:
-            token_list.append(line.replace("\n",""))
-        token_list_file.close()
-    except FileNotFoundError:
-        # Just return empty or re-raise with message? Script usually crashes if this fails.
-        # Returning empty to be handled by caller or crash later.
-        print(f"Warning: {filename} not found.")
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Query tokens that meet or exceed the unknown_threshold
+        cursor.execute("SELECT PFAM FROM TokenList WHERE prevalence >= ?", (unknown_threshold,))
+        
+        for row in cursor.fetchall():
+            token_list.append(row[0])
+            
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Failed to load tokens from {db_path} - {e}")
         
     return token_list
 
@@ -124,15 +124,15 @@ def parse_fp_file(fp_file_path):
                     fps[bgc_name].append(int(val))
     return classification_types, fps
 
-def load_bgc_tokens(data_set_file, token_path, token_list, max_bgc_length, known_bgcs=None):
+def load_bgc_tokens(db_path, token_list, max_bgc_length, known_bgcs=None):
     """
-    Loads BGC tokens for a list of files specified in data_set_file.
+    Loads BGC tokens from SQLite db.
     Args:
-        data_set_file (str): Path to file containing list of BGC filenames.
-        token_path (str): Directory containing token files.
+        db_path (str): Path to the SQLite database.
         token_list (list): Valid tokens list.
         max_bgc_length (int): Max length.
         known_bgcs (dict/set): Optional set of BGC names to filter by (e.g. only those with labels).
+                               Matches against refseq_assembly or locus.
     
     Returns:
         bgc_tokens (list): List of token lists.
@@ -141,66 +141,65 @@ def load_bgc_tokens(data_set_file, token_path, token_list, max_bgc_length, known
     bgc_tokens = []
     bgc_names = []
     
-    with open(data_set_file, 'r') as training_data_file:
-        for line in training_data_file:
-            filename = line.replace("\n","")
-            # If known_bgcs is provided, skip if not in it
-            if known_bgcs is not None and filename not in known_bgcs:
-                continue
+    token_set = set(token_list)  # O(1) lookups
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT id, refseq_assembly, locus, region, tokenized_sequence FROM RegionSequences")
+        
+        for row in cursor.fetchall():
+            row_id, refseq, locus, region, tokenized_seq = row
             
-            bgc_name = filename
+            # Form possible matching names
+            possible_names = [str(row_id), refseq, locus, f"{refseq}_region{region:03d}", f"{locus}_region{region:03d}"]
             
-            # Construct full path to token file
-            # Assuming token_path + filename is the pattern (classificationTask.py line 98)
-            full_path = os.path.join(token_path, filename)
-            
-            if not os.path.exists(full_path):
-                # Fallback or strict error? Original code just tries to open it.
-                # skipping if not found to avoid crash
+            bgc_name = None
+            if known_bgcs is not None:
+                for name in possible_names:
+                    if name in known_bgcs:
+                        bgc_name = name
+                        break
+                if bgc_name is None:
+                    continue # Skip if not found
+            else:
+                # Default to a descriptive BGC name if no filter provided
+                bgc_name = f"{refseq}_{locus}_region{region}"
+
+            if not tokenized_seq:
                 continue
 
-            infile = open(full_path)
-            bgc_token = ["CLS"]
-            # useBGC = True # unused in original script
-            
-            # Original code logic:
-            # for line in infile: split_line = line.split(",")
-            # if len(split_line) + 2 > max_bgc_length: continue
-            
-            # We need to read the content. Assuming one line per file or just concatenation?
-            # Original script loop:
-            # for line in infile:
-            #    split_line = line.split(",")
-            # It seems it overwrites split_line or just takes the last one? 
-            # Likely the file is a single line CSV of tokens.
-            
-            split_line = []
-            for line_in_file in infile:
-                split_line = line_in_file.split(",")
-            infile.close()
+            # Tokenized sequence in DB is a comma separated string
+            split_line = [t.strip() for t in tokenized_seq.split(",")]
             
             if len(split_line) == 0:
                 continue
-
+            
+            # +2 for CLS and SEP tokens
             if len(split_line) + 2 > max_bgc_length:
                 continue
-            
+                
+            bgc_token = ["CLS"]
             for t in split_line:
-                if t in token_list:
+                if t in token_set:
                     bgc_token.append(t)
                 else:
                     bgc_token.append("UNK")
             bgc_token.append("SEP")
             
-            if len(bgc_token) < max_bgc_length:
-                j = len(bgc_token)
-                while j < max_bgc_length:
-                   bgc_token.append("PAD")
-                   j += 1
+            # Vectorized padding logic avoiding loop
+            pad_length = max_bgc_length - len(bgc_token)
+            if pad_length > 0:
+                bgc_token.extend(["PAD"] * pad_length)
                    
             bgc_names.append(bgc_name)           
             bgc_tokens.append(bgc_token)
             
+        conn.close()
+    except Exception as e:
+        print(f"Warning: Failed to load sequence data from {db_path} - {e}")
+        
     print(str(len(bgc_tokens)) + " BGCs under length threshold")
     return bgc_tokens, bgc_names
 

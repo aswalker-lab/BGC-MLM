@@ -31,7 +31,7 @@ def main():
 
     # 1. Load Data
     print("Loading data...")
-    token_list = load_token_list(args.unknown_threshold, args.max_bgc_length)
+    token_list = load_token_list(args.data_set, args.unknown_threshold)
     
     regression_types, bgc_values = parse_regression_file(args.regression_file)
         
@@ -39,7 +39,6 @@ def main():
     # Using keys of bgc_values as known filter
     bgc_tokens, bgc_names = load_bgc_tokens(
         args.data_set, 
-        args.token_path, 
         token_list, 
         args.max_bgc_length,
         known_bgcs=bgc_values

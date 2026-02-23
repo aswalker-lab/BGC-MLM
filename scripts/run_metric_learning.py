@@ -31,14 +31,13 @@ def main():
 
     # 1. Load Data
     print("Loading data...")
-    token_list = load_token_list(args.unknown_threshold, args.max_bgc_length)
+    token_list = load_token_list(args.data_set, args.unknown_threshold)
     
     classification_types, fps = parse_fp_file(args.fp_file)
         
     # Load BGC tokens
     bgc_tokens, bgc_names = load_bgc_tokens(
         args.data_set, 
-        args.token_path, 
         token_list, 
         args.max_bgc_length,
         known_bgcs=fps

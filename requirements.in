@@ -1,0 +1,11 @@
+torch
+pytorch-lightning
+scikit-learn
+scipy
+pandas
+numpy
+joblib
+tqdm
+Bio
+matplotlib
+# rdkit
