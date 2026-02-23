@@ -7,7 +7,7 @@ class BGCDataset(Dataset):
     """
     Dataset for all BGC-MLM tasks. Data input should be CSV file with this format:
         classification, regression, embedding, [tokanized BGC sequence]
-    Toaknized BCG sequence should already have tags and padding added as needed
+    Tokanized BGC sequence should already have tags and padding added as needed
     """
     def __init__(self, data, device=None):
         self.data = data
