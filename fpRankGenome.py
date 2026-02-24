@@ -18,10 +18,16 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import tools.BGC_MLM_tools
+import src.models.wrappers as model_wrappers
+import src.data.wrappers as data_wrappers
 from sklearn.metrics import classification_report
 from rdkit import DataStructs
 from rdkit.DataStructs.cDataStructs import ExplicitBitVect
+from rdkit import Chem
+from rdkit.Chem import rdFingerprintGenerator
+from rdkit.Chem import MACCSkeys
+from src.utils import arg_parse
+from sys import argv
 from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem import MACCSkeys
@@ -120,7 +126,8 @@ for name in genome_bgc_names:
     y_vals.append(y)
 
 # load model from file
-bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+# load model from file
+mlm = model_wrappers.create_mlm_model(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
   d_model=d_model,
@@ -131,14 +138,14 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda available")
 print(torch.cuda.is_available())
-mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
+
 print(len(fp))
 print(len(y_vals[0]))
-classification_model = BGC_MLM_tools.BGCMultiLabelClassifier(mlm.bgc_mlm,d_model,len(y_vals[0]),freeze=True)
+classification_model = model_wrappers.BGCMultiLabelClassifier(mlm.bgc_mlm,d_model,len(y_vals[0]),freeze=True)
 classification_model.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 classification_model.to(device)
 
-genome_dataset = BGC_MLM_tools.BGCClassificationDatasets(
+genome_dataset = data_wrappers.BGCClassificationDatasets(
    genome_bgc_tokens, token_list, y_vals, seq_len=max_bgc_length)
 
 if device == "cpu":
@@ -148,7 +155,7 @@ else:
     genome_unmasked_loader = DataLoader(
         genome_dataset, batch_size=1, shuffle=False, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
-genome_bert_trainer = BGC_MLM_tools.BGCMultiLabelTrainier(classification_model, genome_unmasked_loader, genome_dataset, None, device=device)   
+genome_bert_trainer = model_wrappers.BGCMultiLabelTrainier(classification_model, genome_unmasked_loader, genome_dataset, None, device=device)   
 genome_predictions = genome_bert_trainer.predict(genome_dataset,batch_size=batch_size)
 
 tani_scores = {}

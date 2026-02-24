@@ -17,7 +17,8 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import tools.BGC_MLM_tools
+import src.models.wrappers as model_wrappers
+import src.data.wrappers as data_wrappers
 from src.utils import arg_parse
 from sys import argv
 
@@ -36,7 +37,7 @@ for line in token_list_file:
     token_list.append(line.replace("\n",""))
 
 # load model from file
-bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+mlm = model_wrappers.create_mlm_model(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
   d_model=args.d_model,
@@ -45,7 +46,8 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
   dropout=args.dropout
 )
 
-mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 mlm.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 mlm.to(device)
 
@@ -89,7 +91,7 @@ max_bgc_length = 0
 accuracy_by_position = []
 max_val_by_position = []
 for i in range(1,len(bgc_token)):
-    masked_dataset = BGC_MLM_tools.specificMaskMLMDataset(
+    masked_dataset = data_wrappers.specificMaskMLMDataset(
             bgc_tokens, token_list, [i], seq_len=max_bgc_length)
     if device == "cpu":
         masked_loader = DataLoader(
@@ -97,7 +99,7 @@ for i in range(1,len(bgc_token)):
     else:
         masked_loader = DataLoader(
             masked_dataset, batch_size=1, shuffle=True, pin_memory=False)
-    mlm_trainer = BGC_MLM_tools.MLMTrainer(mlm, masked_loader, masked_loader, device=device)   
+    mlm_trainer = model_wrappers.MLMTrainer(mlm, masked_loader, masked_loader, device=device)   
     pos_avg_loss, pos_avg_accuracy, pos_avg_5_accuracy, pos_avg_10_accuracy, avg_max_val = mlm_trainer.predictSequenceMetrics()
     if pos_avg_loss == None:
         continue

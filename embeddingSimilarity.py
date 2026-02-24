@@ -18,7 +18,8 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import tools.BGC_MLM_tools
+import src.models.wrappers as model_wrappers
+import src.data.wrappers as data_wrappers
 from sklearn.metrics import classification_report
 from rdkit import DataStructs
 from rdkit.DataStructs.cDataStructs import ExplicitBitVect
@@ -93,7 +94,8 @@ for name in bgc_names:
     fps.append(y)
 
 # load model from file
-bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+# load model from file
+mlm = model_wrappers.create_mlm_model(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
   d_model=d_model,
@@ -104,11 +106,10 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda available")
 print(torch.cuda.is_available())
-mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
-target_embedding_model = BGC_MLM_tools.BGCMetricLearning(mlm.bgc_mlm,d_model,args.fp_size)
+target_embedding_model = model_wrappers.BGCMetricLearning(mlm.bgc_mlm,d_model,args.fp_size)
 target_embedding_model.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 target_embedding_model.to(device)
-dataset = BGC_MLM_tools.BGCClassificationDatasets(
+dataset = data_wrappers.BGCClassificationDatasets(
    bgc_tokens, token_list, fps, seq_len=max_bgc_length)
 
 if device == "cpu":
@@ -118,7 +119,7 @@ else:
     unmasked_loader = DataLoader(
         dataset, batch_size=1, shuffle=False, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
-bert_trainer = BGC_MLM_tools.BGCMetricTrainer(target_embedding_model, unmasked_loader, dataset, None, device=device)   
+bert_trainer = model_wrappers.BGCMetricTrainer(target_embedding_model, unmasked_loader, dataset, None, device=device)   
 embedding = bert_trainer.predict(dataset,batch_size=batch_size)
 
 model_name = args.model_name[args.model_name.rfind("/")+1:len(args.model_name)]

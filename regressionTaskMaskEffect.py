@@ -18,10 +18,8 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import tools.BGC_MLM_tools
-from sklearn.metrics import mean_squared_error, mean_absolute_error 
-import matplotlib.pyplot as plt
-from scipy.stats import pearsonr
+import src.models.wrappers as model_wrappers
+import src.data.wrappers as data_wrappers
 from src.utils import arg_parse
 from sys import argv
 
@@ -90,7 +88,7 @@ for name in bgc_names:
     y_vals.append(y)
 
 # load model from file
-bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+mlm = model_wrappers.create_mlm_model(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
   d_model=d_model,
@@ -101,14 +99,13 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda available")
 print(torch.cuda.is_available())
-mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
 
-regression_model = BGC_MLM_tools.BGCRegression(mlm.bgc_mlm,d_model,len(y_vals[0]),freeze=True)
+regression_model = model_wrappers.BGCRegression(mlm.bgc_mlm,d_model,len(y_vals[0]),freeze=True)
 regression_model.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 regression_model.to(device)
 
 # do base predictions for each BGC
-regression_dataset = BGC_MLM_tools.BGCRegressionDatasets(
+regression_dataset = data_wrappers.BGCRegressionDatasets(
    bgc_tokens, token_list, y_vals, seq_len=max_bgc_length)
 
 if device == "cpu":
@@ -117,7 +114,7 @@ if device == "cpu":
 else:
     unmasked_loader = DataLoader(
         regression_dataset, batch_size=1, shuffle=False, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
-bert_trainer = BGC_MLM_tools.BGCRegressionTrainier(regression_model, unmasked_loader, regression_dataset, device=device)   
+bert_trainer = model_wrappers.BGCRegressionTrainier(regression_model, unmasked_loader, regression_dataset, device=device)   
 test_predictions = bert_trainer.predict(regression_dataset,batch_size=batch_size)
 unmasked_prediction = test_predictions[0,output_index]
 print(test_predictions[0,output_index])
@@ -128,7 +125,7 @@ for i in range(1,len(bgc_token)):
     token = bgc_tokens[0][i]
     if token == "PAD" or token == "SEP" or token == "CLS":
         continue
-    masked_dataset = BGC_MLM_tools.specificMaskMLMDataset(
+    masked_dataset = data_wrappers.specificMaskMLMDataset(
             bgc_tokens, token_list, [i], seq_len=max_bgc_length)
     if device == "cpu":
         masked_loader = DataLoader(
@@ -136,7 +133,7 @@ for i in range(1,len(bgc_token)):
     else:
         masked_loader = DataLoader(
             masked_dataset, batch_size=1, shuffle=True, pin_memory=False)
-    bert_trainer = BGC_MLM_tools.BGCRegressionTrainier(regression_model, masked_loader, masked_dataset, device=device)   
+    bert_trainer = model_wrappers.BGCRegressionTrainier(regression_model, masked_loader, masked_dataset, device=device)   
     test_predictions = bert_trainer.predict(masked_dataset,batch_size=batch_size)
     
     diff = test_predictions[0,output_index] - unmasked_prediction

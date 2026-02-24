@@ -18,7 +18,8 @@ from torch.optim import Adam
 import tqdm
 from torch.utils.data import Dataset, DataLoader
 import argparse
-import BGC_MLM_tools
+import src.models.wrappers as model_wrappers
+import src.data.wrappers as data_wrappers
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, precision_score, recall_score, roc_auc_score
 from src.utils import arg_parse
 from sys import argv
@@ -37,7 +38,7 @@ for line in token_list_file:
     token_list.append(line.replace("\n",""))
 
 # load model from file
-bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
+mlm = model_wrappers.create_mlm_model(
   vocab_size=len(token_list),
   seq_len=max_bgc_length,
   d_model=args.d_model,
@@ -48,7 +49,6 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda available")
 print(torch.cuda.is_available())
-mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
 
 mlm.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 mlm.to(device)
@@ -134,7 +134,7 @@ y_vals = []
 for name in bgc_names: 
     y_vals.append(bgc_classifications[name])
 
-classification_dataset = BGC_MLM_tools.BGCClassificationDatasets(
+classification_dataset = data_wrappers.BGCClassificationDatasets(
    bgc_tokens, token_list, y_vals, seq_len=max_bgc_length)
 
 train_set, val_set = torch.utils.data.random_split(classification_dataset, [math.floor(9*len(bgc_names)/10), len(bgc_names) - math.floor(9*len(bgc_names)/10)])
@@ -147,8 +147,8 @@ else:
         train_set, batch_size=args.batch_size, shuffle=True, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
 # using pretrained model
-classifier_model = BGC_MLM_tools.BGCMultiLabelClassifier(mlm.bgc_mlm,args.d_model,len(y_vals[0]),freeze=True)
-bert_trainer = BGC_MLM_tools.BGCMultiLabelTrainier(classifier_model, unmasked_loader, val_set, pos_weights, device=device)   
+classifier_model = model_wrappers.BGCMultiLabelClassifier(mlm.bgc_mlm,args.d_model,len(y_vals[0]),freeze=True)
+bert_trainer = model_wrappers.BGCMultiLabelTrainier(classifier_model, unmasked_loader, val_set, pos_weights, device=device)   
 epochs = 20
 classifier_model.to(device)
 # print("Checking device for model parameters:")
