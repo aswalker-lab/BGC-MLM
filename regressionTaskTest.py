@@ -159,6 +159,9 @@ for i in range(0, len(regression_types)):
     print("MSE: " + str(mse))
     print("MAE: " + str(mae))
     print("Pearson's correlation: " + str(corr))
+    graph_outfile = open(regression_types[i] + "_" + args.model_name[args.model_name.rfind("/")+1:len(args.model_name)] + "_" + args.data_set[0:args.data_set.find(".")] + "_" + args.regression_file[0:args.regression_file.find(".")] + "_regression.txt",'w')
+    for j in range(0,len(predicted_y)):
+        graph_outfile.write(str(true_y[j]) + "," + str(predicted_y[j]) + "\n")
     plt.scatter(true_y, predicted_y,c='blue')
     plt.xlim(min(0,min(true_y),min(predicted_y)),max(max(true_y),max(predicted_y)))
     plt.ylim(min(0,min(true_y),min(predicted_y)),max(max(true_y),max(predicted_y)))
@@ -169,4 +172,5 @@ for i in range(0, len(regression_types)):
     plt.cla()
     outfile.write(args.model_name[args.model_name.rfind("/")+1:len(args.model_name)] + "_" + regression_types[i] + ",")
     outfile.write(str(mae) + "," + str(mse) + "," + str(corr.statistic) + "\n")
+    graph_outfile.close()
 outfile.close()

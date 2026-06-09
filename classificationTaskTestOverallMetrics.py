@@ -21,7 +21,7 @@ import argparse
 import BGC_MLM_tools
 from sklearn.metrics import (
     f1_score, precision_score, recall_score,
-    jaccard_score, hamming_loss
+    jaccard_score, hamming_loss, average_precision_score, roc_auc_score
 )
 
 
@@ -161,7 +161,7 @@ else:
     outprefix = args.data_set[0:args.data_set.find(".")] + "_" + args.classification_file[args.classification_file.rfind("/")+1:args.classification_file.find(".")]
 if not os.path.isfile(outprefix + "_classification_overall.txt"):
     outfile = open(outprefix +  "_classification_overall.txt",'w')
-    outfile.write("model_name,f1_micro,prec_micro,recall_micro,f1_macro,prec_macro,recall_macro,f1_samples,prec_samples,recall_samples,jaccard_micro,jaccard_macro,jaccard_sample,hloss\n")
+    outfile.write("model_name,f1_micro,prec_micro,recall_micro,f1_macro,prec_macro,recall_macro,f1_samples,prec_samples,recall_samples,jaccard_micro,jaccard_macro,jaccard_sample,hloss,ap_micro,ap_macro,auroc_micro,auroc_macro\n")
 else:
     outfile = open(outprefix + "_classification_overall.txt",'a')
 
@@ -187,6 +187,25 @@ jaccard_micro = jaccard_score(true_y, predicted_y_class, average='micro')
 jaccard_macro = jaccard_score(true_y, predicted_y_class, average='macro')
 jaccard_samples = jaccard_score(true_y, predicted_y_class, average='samples')
 hloss = hamming_loss(true_y, predicted_y_class)
+ap_micro = average_precision_score(true_y,predicted_y_class,average="micro")
+ap_macro = average_precision_score(true_y,predicted_y_class,average="macro")
+#limit auroc calcs to classes with at least one true member
+valid_labels = []
+for j in range(true_y.shape[1]):
+    has_positive = np.any(true_y[:, j] == 1)
+    has_negative = np.any(true_y[:, j] == 0)
+
+    if has_positive and has_negative:
+        valid_labels.append(j)
+
+if len(valid_labels) == 0:
+    raise ValueError("No labels have both positive and negative examples.")
+
+y_true_valid = true_y[:, valid_labels]
+predicted_y_valid = predicted_y[:, valid_labels]
+print(predicted_y_valid)
+auroc_micro = roc_auc_score(y_true_valid,predicted_y_valid,average="micro")
+auroc_macro = roc_auc_score(y_true_valid,predicted_y_valid,average="macro")
 outfile.write(args.model_name[args.model_name.rfind("/")+1:len(args.model_name)] + ",")
 outfile.write(str(f1_micro) + ",")
 outfile.write(str(prec_micro)+ ",")
@@ -200,7 +219,11 @@ outfile.write(str(recall_samples)+ ",")
 outfile.write(str(jaccard_micro)+ ",")
 outfile.write(str(jaccard_macro)+ ",")
 outfile.write(str(jaccard_samples)+ ",")
-outfile.write(str(hloss)+ "\n")
+outfile.write(str(hloss)+ ",")
+outfile.write(str(ap_micro) + ",")
+outfile.write(str(ap_macro) + ",")
+outfile.write(str(auroc_micro) + ",")
+outfile.write(str(auroc_macro) + "\n")
 
 
 #outfile.write(str(accuracy) + "," + str(balanced_accuracy) + "," + str(precision) + "," + str(recall) + "," + str(roc_auc) + "," + str(prc_auc) + "\n")

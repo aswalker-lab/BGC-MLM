@@ -1,0 +1,5 @@
+bgc_id,PKS,other,saccharide,NRPS,ribosomal,terpene
+BGC0000591,0,0,0,0,1,0
+BGC0000593,0,0,0,0,1,0
+BGC0000749,0,0,1,0,0,0
+BGC0002334,0,1,0,0,1,0

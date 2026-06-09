@@ -169,7 +169,7 @@ else:
 #using pretrained model
 classifier_model = BGC_MLM_tools.BGCMultiLabelClassifier(mlm.bgc_mlm,args.d_model,len(y_vals[0]),freeze=False)
 bert_trainer = BGC_MLM_tools.BGCMultiLabelTrainier(classifier_model, unmasked_loader, val_set, pos_weights, device=device)   
-epochs = 50
+epochs = args.epochs
 classifier_model.to(device)
 #print("Checking device for model parameters:")
 #for name, param in classifier_model.named_parameters():
