@@ -990,6 +990,9 @@ class BGCMetricLearning(torch.nn.Module):
     def __init__(self,bgc_mlm, d_model,d_fp,freeze=False):
         super(BGCMetricLearning, self).__init__()
         self.bgc_mlm = bgc_mlm
+        if freeze:
+            for param in bgc_mlm.parameters():
+                param.requires_grad = False
         self.d_model = d_model
         self.dense_layers = torch.nn.Sequential(torch.nn.Linear(d_model,int(d_model)),torch.nn.ReLU())
         self.output = torch.nn.Sequential(torch.nn.Linear(int(d_model), d_fp))

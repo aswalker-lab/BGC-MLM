@@ -36,6 +36,7 @@ parser.add_argument('fp_file',type=str) # file containing fingerprints for BGC
 parser.add_argument('token_path',type=str) #path to directory with tokens
 parser.add_argument('--seed',type=int,default=0) #random seed
 parser.add_argument('--model_output',type=str,default="metric") #output name for classifier
+parser.add_argument('--freeze',type=int,default=1) #freeze pretrained weights?
 parser.add_argument('--epochs',type=int,default=50) #output name for classifier
 parser.add_argument('--train_fraction',type=float,default=0.9) #fraction to use for training, remaining will be val
 parser.add_argument('--fp_size',type=int,default=8192) #fraction to use for training, remaining will be val
@@ -66,6 +67,13 @@ bgc_mlm_model = BGC_MLM_tools.BGC_MLM(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("cuda available")
 print(torch.cuda.is_available())
+
+#using pretrained model
+freeze=True
+if args.freeze == 0:
+    freeze = False
+
+
 mlm = BGC_MLM_tools.MLM(bgc_mlm_model, len(token_list))
 mlm.load_state_dict(torch.load(args.model_name,weights_only=True, map_location=torch.device(device)))
 mlm.to(device)
@@ -144,7 +152,7 @@ else:
         train_set, batch_size=args.batch_size, shuffle=True, pin_memory=False)#pin_memory=False, pin_memory_device="cuda")
 
 #using pretrained model
-target_embedding_model = BGC_MLM_tools.BGCMetricLearning(mlm.bgc_mlm,args.d_model,args.fp_size)
+target_embedding_model = BGC_MLM_tools.BGCMetricLearning(mlm.bgc_mlm,args.d_model,args.fp_size,freeze=freeze)
 bert_trainer = BGC_MLM_tools.BGCMetricTrainer(target_embedding_model, unmasked_loader, val_set,device=device,loss_type=args.loss_type)   
 epochs = args.epochs
 target_embedding_model.to(device)
