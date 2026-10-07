@@ -13,7 +13,7 @@ Classification can be trained with the following command:
 <br/>
 ```python classificationTask.py <PATH_TO_PRETRAINED_MODEL> <UNKNOWN_THRESHOLD> <MAX_BGC_LENGTH> <D_MODEL> <N_LAYERS> <HEADS> <DROPOUT> <BATCH_SIZE> <FILE_WITH_BGC_LIST> <ClASSIFICATION_LABELS_FILE> <PATH_TO_TOKENIZED_BGCS>```
 <br/>
-By default this runs the training with weights for the language model encoder frozen. To run the training with unfrozen language model encoder weights add ```--freeze 0``` to the command. By default the model is output to <PATH_TO_PRETRAINED_MODEL>_regression. To give the model a different name, use the ```--model_output``` argument, this will add a custom suffix to the output filename. To specify the number of epochs add ```--epochs <NUMBER_OF_EPOCHS> to the command. By default this runs with class weighting, to not use class weighting add ```--use_pos_weights 0``` to the command.
+By default this runs the training with weights for the language model encoder frozen. To run the training with unfrozen language model encoder weights add ```--freeze 0``` to the command. By default the model is output to <PATH_TO_PRETRAINED_MODEL>_regression. To give the model a different name, use the ```--model_output``` argument, this will add a custom suffix to the output filename. To specify the number of epochs add ```--epochs <NUMBER_OF_EPOCHS>``` to the command. By default this runs with class weighting, to not use class weighting add ```--use_pos_weights 0``` to the command.
 <br/>
 <br/>
 Regression task:
@@ -22,7 +22,7 @@ Regression can be trained with the following command:
 <br/>
 ```python regressionTask.py <PATH_TO_PRETRAINED_MODEL> <UNKNOWN_THRESHOLD> <MAX_BGC_LENGTH> <D_MODEL> <N_LAYERS> <HEADS> <DROPOUT> <BATCH_SIZE> <FILE_WITH_BGC_LIST> <REGRESSION_LABELS_FILE> <PATH_TO_TOKENIZED_BGCS>```
 <br/>
-By default this runs the training with weights for the language model encoder frozen. To run the training with unfrozen language model encoder weights add ```--freeze 0``` to the command. By default the model is output to <PATH_TO_PRETRAINED_MODEL>_regression. To give the model a different name, use the ```--model_output``` argument, this will add a custom suffix to the output filename. To specify the number of epochs add ```--epochs <NUMBER_OF_EPOCHS> to the command.
+By default this runs the training with weights for the language model encoder frozen. To run the training with unfrozen language model encoder weights add ```--freeze 0``` to the command. By default the model is output to <PATH_TO_PRETRAINED_MODEL>_regression. To give the model a different name, use the ```--model_output``` argument, this will add a custom suffix to the output filename. To specify the number of epochs add ```--epochs <NUMBER_OF_EPOCHS>``` to the command.
 # Training models from scratch
 Classification task:
 <br/>
